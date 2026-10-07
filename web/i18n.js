@@ -8,7 +8,9 @@ if (!Object.hasOwn(languages, language)) language = 'en';
 
 async function load(code) {
     if (!catalogs[code]) {
-        const response = await fetch(new URL(`./locales/${code}.json`, import.meta.url));
+        const response = await fetch(new URL(`./locales/${code}.json`, import.meta.url), {
+            signal: AbortSignal.timeout(3000),
+        });
         if (!response.ok) throw new Error(`Could not load ${code} translations`);
         catalogs[code] = await response.json();
         templates[code] = Object.entries(catalogs[code])

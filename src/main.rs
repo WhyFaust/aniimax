@@ -267,7 +267,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("================================================================");
     println!();
     println!("{}", args.language.text("Configuration:"));
-    println!("  {} {:.0} {}", args.language.text("Target:"), args.target, args.language.text(&args.currency));
+    let target_label = match (args.language, args.currency.as_str()) {
+        (Language::Ru, "wood_blocks") => "Wood Blocks",
+        (Language::Ru, "mineral_sand") => "Mineral Sand",
+        (_, currency) => currency,
+    };
+    println!("  {} {:.0} {}", args.language.text("Target:"), args.target, args.language.text(target_label));
     println!("  {} {}/{}", args.language.text("Energy Cost:"), args.energy_cost, args.language.text("min"));
     println!(
         "  {} {}", args.language.text("Mode:"),

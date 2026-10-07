@@ -28,6 +28,9 @@ impl Language {
         if self == Self::En {
             return english.to_owned();
         }
+        if let Some(item) = english.strip_suffix(" (for energy)") {
+            return format!("{} {}", self.item(item), self.text("(for energy)"));
+        }
         let name = english.split('_').map(|word| {
             let mut letters = word.chars();
             match letters.next() {
