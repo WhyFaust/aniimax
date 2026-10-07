@@ -2002,7 +2002,17 @@ function renderRecipeOptions() {
         recipeIndex.map(r => `<option value="${escapeText(recipeLabel(r))}"></option>`).join('');
 }
 
-document.addEventListener('aniimax-language-change', renderRecipeOptions);
+document.addEventListener('aniimax-language-change', () => {
+    const input = document.getElementById('skip-input');
+    const options = document.getElementById('skip-options');
+    const selected = Array.from(options.options)
+        .findIndex(option => option.value.toLowerCase() === input.value.trim().toLowerCase());
+    renderRecipeOptions();
+    if (selected >= 0) {
+        input.value = options.options[selected].value;
+        input.setCustomValidity('');
+    }
+});
 
 async function loadRecipeIndex() {
     try {

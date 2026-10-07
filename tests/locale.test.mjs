@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { runInNewContext } from 'node:vm';
 
 const english = JSON.parse(await readFile(new URL('../web/locales/en.json', import.meta.url)));
 const russian = JSON.parse(await readFile(new URL('../web/locales/ru.json', import.meta.url)));
@@ -44,6 +45,33 @@ assert.equal(node.nodeValue, 'Your Homeland');
 assert.equal(document.documentElement.lang, 'en');
 assert.equal(selector.value, 'ru');
 assert.equal(saved.get('aniimax-language'), 'ru');
+
+const appSource = await readFile(new URL('../web/app.js', import.meta.url), 'utf8');
+const handlerStart = appSource.indexOf("document.addEventListener('aniimax-language-change'");
+const handlerEnd = appSource.indexOf('async function loadRecipeIndex()', handlerStart);
+assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+const handlerSource = appSource.slice(handlerStart, handlerEnd);
+const englishRecipe = 'Wheat (Farmland)';
+const russianRecipe = 'Пшеница (Пахотная земля)';
+for (const [before, after, typed] of [
+    [englishRecipe, russianRecipe, englishRecipe],
+    [russianRecipe, englishRecipe, russianRecipe],
+    [englishRecipe, russianRecipe, 'unfinished recipe'],
+]) {
+    const input = { value: typed, validity: 'previous error', setCustomValidity(value) { this.validity = value; } };
+    const options = { options: [{ value: before }] };
+    let languageChanged;
+    runInNewContext(handlerSource, {
+        document: {
+            addEventListener: (_, listener) => { languageChanged = listener; },
+            getElementById: id => id === 'skip-input' ? input : options,
+        },
+        renderRecipeOptions: () => { options.options = [{ value: after }]; },
+    });
+    languageChanged();
+    assert.equal(input.value, typed === before ? after : typed);
+    assert.equal(input.validity, typed === before ? '' : 'previous error');
+}
 releaseCatalog();
 await languageReady;
 assert.equal(node.nodeValue, 'Ваша Родина');
