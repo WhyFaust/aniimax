@@ -11,7 +11,11 @@ for (const [source, target] of Object.entries(russian)) {
 
 const saved = new Map([['aniimax-language', 'ru']]);
 globalThis.localStorage = { getItem: key => saved.get(key), setItem: (key, value) => saved.set(key, value) };
-globalThis.fetch = async url => ({ ok: true, json: async () => JSON.parse(await readFile(url)) });
+let releaseCatalog;
+globalThis.fetch = async url => {
+    await new Promise(resolve => { releaseCatalog = resolve; });
+    return { ok: true, json: async () => JSON.parse(await readFile(url)) };
+};
 globalThis.Node = { TEXT_NODE: 3, ELEMENT_NODE: 1 };
 globalThis.NodeFilter = { SHOW_ELEMENT: 1, SHOW_TEXT: 4 };
 const node = { nodeType: 3, nodeValue: 'Your Homeland' };
@@ -35,8 +39,15 @@ globalThis.document = {
 };
 globalThis.MutationObserver = class { observe() {} };
 
-const { translate } = await import('../web/i18n.js');
+const { translate, languageReady } = await import('../web/i18n.js');
+assert.equal(node.nodeValue, 'Your Homeland');
+assert.equal(document.documentElement.lang, 'en');
+assert.equal(selector.value, 'ru');
+assert.equal(saved.get('aniimax-language'), 'ru');
+releaseCatalog();
+await languageReady;
 assert.equal(node.nodeValue, 'Ваша Родина');
+assert.equal(document.documentElement.lang, 'ru');
 assert.equal(labelled.getAttribute('data-label'), 'Прибыль');
 assert.equal(translate('Used for Wheat; the rest sells directly'), 'Используется для Пшеница; остаток продаётся напрямую');
 assert.equal(translate('in 2h 4m'), 'через 2ч 4м');

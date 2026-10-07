@@ -3,14 +3,13 @@ const languages = { en: 'English', ru: 'Русский' };
 const catalogs = { en: {} };
 const templates = {};
 let language = 'en';
-try { language = localStorage.getItem('aniimax-language') || 'en'; } catch (_) { /* Private browsing can disable storage. */ }
-if (!Object.hasOwn(languages, language)) language = 'en';
+let preferredLanguage = 'en';
+try { preferredLanguage = localStorage.getItem('aniimax-language') || 'en'; } catch (_) { /* Private browsing can disable storage. */ }
+if (!Object.hasOwn(languages, preferredLanguage)) preferredLanguage = 'en';
 
 async function load(code) {
     if (!catalogs[code]) {
-        const response = await fetch(new URL(`./locales/${code}.json`, import.meta.url), {
-            signal: AbortSignal.timeout(3000),
-        });
+        const response = await fetch(new URL(`./locales/${code}.json`, import.meta.url));
         if (!response.ok) throw new Error(`Could not load ${code} translations`);
         catalogs[code] = await response.json();
         templates[code] = Object.entries(catalogs[code])
@@ -26,11 +25,6 @@ async function load(code) {
                 return { pattern: new RegExp(`^${pattern}$`), slots, target };
             });
     }
-}
-
-try { await load(language); } catch (error) {
-    console.warn(error);
-    language = 'en';
 }
 
 const textSources = new WeakMap();
@@ -124,23 +118,27 @@ function update(root) {
 
 const selector = document.getElementById('language-switch');
 for (const [code, name] of Object.entries(languages)) selector.add(new Option(name, code));
-selector.value = language;
+selector.value = preferredLanguage;
 document.documentElement.lang = language;
 document.title = translate('Aniimax - Aniimo Production Optimizer');
 update(document.body);
-selector.addEventListener('change', async () => {
-    try { await load(selector.value); } catch (error) {
+let languageRequest = 0;
+async function selectLanguage(code) {
+    const request = ++languageRequest;
+    try { await load(code); } catch (error) {
         console.warn(error);
-        selector.value = language;
+        if (request === languageRequest) selector.value = language;
         return;
     }
-    language = selector.value;
+    if (request !== languageRequest) return;
+    language = code;
     try { localStorage.setItem('aniimax-language', language); } catch (_) { /* Language still changes for this tab. */ }
     document.documentElement.lang = language;
     document.title = translate('Aniimax - Aniimo Production Optimizer');
     update(document.body);
     document.dispatchEvent(new Event('aniimax-language-change'));
-});
+}
+selector.addEventListener('change', () => selectLanguage(selector.value));
 
 new MutationObserver(records => {
     for (const record of records) {
@@ -149,3 +147,5 @@ new MutationObserver(records => {
         else record.addedNodes.forEach(update);
     }
 }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: attributes });
+
+export const languageReady = selectLanguage(preferredLanguage);
